@@ -1,14 +1,14 @@
-import pickle
+import json
 import heapq
 import math
 
-# Load data (place .pkl files in the same folder as this script)
-with open('G.pkl', 'rb') as f:
-    G = pickle.load(f)
-with open('Dist.pkl', 'rb') as f:
-    Dist = pickle.load(f)
-with open('Cost.pkl', 'rb') as f:
-    Cost = pickle.load(f)
+# Load data (place .json files in the same folder as this script)
+with open('G.json') as f:
+    G = json.load(f)
+with open('Dist.json') as f:
+    Dist = json.load(f)
+with open('Cost.json') as f:
+    Cost = json.load(f)
 
 SOURCE = '1'
 TARGET = '50'
@@ -50,7 +50,6 @@ def task2_ucs(G, Dist, Cost, source, target, budget):
         if u == target:
             break
 
-        # Skip if we already found a better state for this node
         if u in visited:
             vd, ve = visited[u]
             if d >= vd and e >= ve:
@@ -59,8 +58,8 @@ def task2_ucs(G, Dist, Cost, source, target, budget):
         visited[u] = (d, e)
 
         for v in G[u]:
-            new_dist = d + Dist[u, v]
-            new_energy = e + Cost[u, v]
+            new_dist = d + Dist[f"{u},{v}"]
+            new_energy = e + Cost[f"{u},{v}"]
 
             if new_energy > budget:
                 continue  # prune: energy constraint violated
@@ -79,8 +78,8 @@ def task2_ucs(G, Dist, Cost, source, target, budget):
         print("No feasible path found within energy budget.")
         return
 
-    total_dist = sum(Dist[path[i], path[i + 1]] for i in range(len(path) - 1))
-    total_energy = sum(Cost[path[i], path[i + 1]] for i in range(len(path) - 1))
+    total_dist = sum(Dist[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
+    total_energy = sum(Cost[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
     return path, total_dist, total_energy
 
 

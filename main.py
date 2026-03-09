@@ -1,21 +1,21 @@
-import pickle
+import json
 import heapq
 import math
 
 # ──────────────────────────────────────────────
 # Load instance data
 # ──────────────────────────────────────────────
-with open('G.pkl', 'rb') as f:
-    G = pickle.load(f)
+with open('G.json') as f:
+    G = json.load(f)
 
-with open('Coord.pkl', 'rb') as f:
-    Coord = pickle.load(f)
+with open('Coord.json') as f:
+    Coord = json.load(f)
 
-with open('Dist.pkl', 'rb') as f:
-    Dist = pickle.load(f)
+with open('Dist.json') as f:
+    Dist = json.load(f)
 
-with open('Cost.pkl', 'rb') as f:
-    Cost = pickle.load(f)
+with open('Cost.json') as f:
+    Cost = json.load(f)
 
 # ──────────────────────────────────────────────
 # Problem parameters
@@ -68,7 +68,7 @@ def task1_ucs(G, Dist, source, target):
             continue
 
         for v in G[u]:
-            new_dist = d + Dist[u, v]
+            new_dist = d + Dist[f"{u},{v}"]
             if new_dist < best_dist.get(v, math.inf):
                 best_dist[v] = new_dist
                 prev[v] = u
@@ -80,7 +80,7 @@ def task1_ucs(G, Dist, source, target):
         return
 
     total_dist = best_dist[target]
-    total_energy = sum(Cost[path[i], path[i + 1]] for i in range(len(path) - 1))
+    total_energy = sum(Cost[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
     return path, total_dist, total_energy
 
 
@@ -93,10 +93,6 @@ def task1_ucs(G, Dist, source, target):
 def task2_ucs(G, Dist, Cost, source, target, budget):
     # Priority queue: (distance, energy, node)
     pq = [(0, 0, source)]
-    # best[node] = minimum energy seen at node for each distance level
-    # We track (dist, energy) to avoid re-expanding dominated states.
-    # Key insight: a state (u, e) is dominated if we've seen (u, e') with e' <= e
-    # at the same or shorter distance. We use a dict: node -> best_energy at best_dist.
     visited = {}  # node -> (best_dist, best_energy) at time of expansion
     prev = {source: None}
     best = {source: (0, 0)}  # node -> (dist, energy)
@@ -116,8 +112,8 @@ def task2_ucs(G, Dist, Cost, source, target, budget):
         visited[u] = (d, e)
 
         for v in G[u]:
-            new_dist = d + Dist[u, v]
-            new_energy = e + Cost[u, v]
+            new_dist = d + Dist[f"{u},{v}"]
+            new_energy = e + Cost[f"{u},{v}"]
 
             if new_energy > budget:
                 continue  # prune: energy constraint violated
@@ -138,8 +134,8 @@ def task2_ucs(G, Dist, Cost, source, target, budget):
         print("No feasible path found within energy budget.")
         return
 
-    total_dist = sum(Dist[path[i], path[i + 1]] for i in range(len(path) - 1))
-    total_energy = sum(Cost[path[i], path[i + 1]] for i in range(len(path) - 1))
+    total_dist = sum(Dist[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
+    total_energy = sum(Cost[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
     return path, total_dist, total_energy
 
 
@@ -176,8 +172,8 @@ def task3_astar(G, Dist, Cost, Coord, source, target, budget):
                 continue
 
         for v in G[u]:
-            new_g = g + Dist[u, v]
-            new_e = e + Cost[u, v]
+            new_g = g + Dist[f"{u},{v}"]
+            new_e = e + Cost[f"{u},{v}"]
 
             if new_e > budget:
                 continue  # prune: energy constraint violated
@@ -198,8 +194,8 @@ def task3_astar(G, Dist, Cost, Coord, source, target, budget):
         print("No feasible path found within energy budget.")
         return
 
-    total_dist = sum(Dist[path[i], path[i + 1]] for i in range(len(path) - 1))
-    total_energy = sum(Cost[path[i], path[i + 1]] for i in range(len(path) - 1))
+    total_dist = sum(Dist[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
+    total_energy = sum(Cost[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
     return path, total_dist, total_energy
 
 
@@ -208,9 +204,9 @@ def task3_astar(G, Dist, Cost, Coord, source, target, budget):
 # ──────────────────────────────────────────────
 if __name__ == '__main__':
     print("=" * 60)
-    print("Task 1: Dijkstra (no energy constraint)")
+    print("Task 1: UCS (no energy constraint)")
     print("=" * 60)
-    result = task1_dijkstra(G, Dist, SOURCE, TARGET)
+    result = task1_ucs(G, Dist, SOURCE, TARGET)
     if result:
         path, dist, energy = result
         format_output(path, dist, energy)
