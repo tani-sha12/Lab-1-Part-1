@@ -1,16 +1,16 @@
-import pickle
+import json
 import heapq
 import math
 
-# Load data (place .pkl files in the same folder as this script)
-with open('G.pkl', 'rb') as f:
-    G = pickle.load(f)
-with open('Coord.pkl', 'rb') as f:
-    Coord = pickle.load(f)
-with open('Dist.pkl', 'rb') as f:
-    Dist = pickle.load(f)
-with open('Cost.pkl', 'rb') as f:
-    Cost = pickle.load(f)
+# Load data (place .json files in the same folder as this script)
+with open('G.json') as f:
+    G = json.load(f)
+with open('Coord.json') as f:
+    Coord = json.load(f)
+with open('Dist.json') as f:
+    Dist = json.load(f)
+with open('Cost.json') as f:
+    Cost = json.load(f)
 
 SOURCE = '1'
 TARGET = '50'
@@ -65,8 +65,8 @@ def task3_astar(G, Dist, Cost, Coord, source, target, budget):
                 continue
 
         for v in G[u]:
-            new_g = g + Dist[u, v]
-            new_e = e + Cost[u, v]
+            new_g = g + Dist[f"{u},{v}"]
+            new_e = e + Cost[f"{u},{v}"]
 
             if new_e > budget:
                 continue  # prune: energy constraint violated
@@ -86,8 +86,8 @@ def task3_astar(G, Dist, Cost, Coord, source, target, budget):
         print("No feasible path found within energy budget.")
         return
 
-    total_dist = sum(Dist[path[i], path[i + 1]] for i in range(len(path) - 1))
-    total_energy = sum(Cost[path[i], path[i + 1]] for i in range(len(path) - 1))
+    total_dist = sum(Dist[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
+    total_energy = sum(Cost[f"{path[i]},{path[i+1]}"] for i in range(len(path) - 1))
     return path, total_dist, total_energy
 
 
