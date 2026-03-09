@@ -48,11 +48,11 @@ def format_output(path, total_dist, total_energy):
 
 
 # ══════════════════════════════════════════════
-# Task 1 — Dijkstra (no energy constraint)
+# Task 1 — Uniform-Cost Search (no energy constraint)
 # Finds the true shortest-distance path from
 # SOURCE to TARGET, ignoring energy costs.
 # ══════════════════════════════════════════════
-def task1_dijkstra(G, Dist, source, target):
+def task1_ucs(G, Dist, source, target):
     # Priority queue: (distance, node)
     pq = [(0, source)]
     best_dist = {source: 0}
@@ -68,8 +68,7 @@ def task1_dijkstra(G, Dist, source, target):
             continue
 
         for v in G[u]:
-            edge_dist = Dist[u, v]
-            new_dist = d + edge_dist
+            new_dist = d + Dist[u, v]
             if new_dist < best_dist.get(v, math.inf):
                 best_dist[v] = new_dist
                 prev[v] = u
