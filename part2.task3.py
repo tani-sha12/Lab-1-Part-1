@@ -32,25 +32,26 @@ from collections import defaultdict
 # Environment Constants
 # ============================================================
 
-GRID_SIZE    = 5
-START        = (0, 0)
-GOAL         = (4, 4)
-ROADBLOCKS   = {(2, 1), (2, 3)}
-GAMMA        = 0.9
-EPSILON      = 0.1
-ALPHA        = 0.1          # learning rate
-NUM_EPISODES = 50_000
-MAX_STEPS    = 500          # safety cap per episode
+grid_size    = 5
+start        = (0, 0)
+goal         = (4, 4)
+roadblocks   = {(2, 1), (2, 3)}
+gamma        = 0.9
+epsilon      = 0.1
+alpha        = 0.1          # learning rate
+num_episodes = 50_000
+max_steps    = 500          # safety cap per episode
 
-ACTIONS = ['U', 'D', 'L', 'R']
-ACTION_SYMBOLS = {'U': '↑', 'D': '↓', 'L': '←', 'R': '→', None: 'G'}
+actions = ['U', 'D', 'L', 'R']
+action_symbol = {'U': '^', 'D': 'v', 'L': '<', 'R': '>', None: 'G'}
 
-PERP = {
-    'U': ('L', 'R'),
-    'D': ('R', 'L'),
-    'L': ('D', 'U'),
-    'R': ('U', 'D'),
+perpendicular = {
+    'U': ('L', 'R'),   # perpendicular to Up → Left, Right
+    'D': ('R', 'L'),   # perpendicular to Down → Right, Left
+    'L': ('D', 'U'),   # perpendicular to Left → Down, Up
+    'R': ('U', 'D'),   # perpendicular to Right → Up, Down
 }
+
 
 # ============================================================
 # Environment Dynamics (unknown to agent; used only to simulate)
@@ -59,11 +60,11 @@ PERP = {
 def move(state, action):
     """Deterministic move; stays in place if wall or roadblock."""
     x, y = state
-    if   action == 'U': nx, ny = x,     y + 1
-    elif action == 'D': nx, ny = x,     y - 1
+    if action == 'U': nx, ny = x, y + 1
+    elif action == 'D': nx, ny = x, y - 1
     elif action == 'L': nx, ny = x - 1, y
     elif action == 'R': nx, ny = x + 1, y
-    if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (nx, ny) not in ROADBLOCKS:
+    if 0 <= nx < grid_size and 0 <= ny < grid_size and (nx, ny) not in roadblocks:
         return (nx, ny)
     return state
 
@@ -77,20 +78,23 @@ def stochastic_step(state, action):
 
     Returns (next_state, reward).
     """
-    perp_l, perp_r = PERP[action]
+    perp_l, perp_r = perpendicular[action]
     outcomes = [(action, 0.8), (perp_l, 0.1), (perp_r, 0.1)]
 
-    r_val      = random.random()
+    r_val = random.random()
     cumulative = 0.0
     for act, prob in outcomes:
         cumulative += prob
         if r_val <= cumulative:
-            ns     = move(state, act)
-            reward = 10.0 if ns == GOAL else -1.0
+            ns = move(state, act)
+            if ns == goal:
+                reward = 10.0
+            else:
+                reward = -1.0
             return ns, reward
 
     ns = move(state, action)
-    return ns, (10.0 if ns == GOAL else -1.0)
+    return ns, (10.0 if ns == goal else -1.0)
 
 # ============================================================
 # ε-Greedy Action Selection
@@ -104,20 +108,20 @@ def epsilon_greedy(Q, state, epsilon):
                            ties broken uniformly at random.
     """
     if random.random() < epsilon:
-        return random.choice(ACTIONS)
-    q_vals = [Q[(state, a)] for a in ACTIONS]
-    max_q  = max(q_vals)
-    best   = [a for a, q in zip(ACTIONS, q_vals) if q == max_q]
+        return random.choice(actions)
+    q_vals = [Q[(state, a)] for a in actions]
+    max_q = max(q_vals)
+    best = [a for a, q in zip(actions, q_vals) if q == max_q]
     return random.choice(best)
 
 # ============================================================
 # Tabular Q-Learning
 # ============================================================
 
-def q_learning(num_episodes=NUM_EPISODES,
-               epsilon=EPSILON,
-               alpha=ALPHA,
-               gamma=GAMMA,
+def q_learning(num_episodes=num_episodes,
+               epsilon=epsilon,
+               alpha=alpha,
+               gamma=gamma,
                seed=42):
     """
     Tabular Q-Learning (off-policy TD control).
@@ -155,25 +159,25 @@ def q_learning(num_episodes=NUM_EPISODES,
     rewards_per_episode = []
 
     for ep in range(1, num_episodes + 1):
-        state        = START
+        state        = start
         total_reward = 0.0
 
-        for _ in range(MAX_STEPS):
+        for x in range(max_steps):
             # --- Action selection (ε-greedy behaviour policy) ---
             action = epsilon_greedy(Q, state, epsilon)
 
             # --- Interact with stochastic environment ---
             next_state, reward = stochastic_step(state, action)
-            total_reward      += reward
+            total_reward += reward
 
             # --- Q-learning update (off-policy TD(0)) ---
-            max_next_q     = max(Q[(next_state, a)] for a in ACTIONS)
-            td_target      = reward + gamma * max_next_q
-            td_error       = td_target - Q[(state, action)]
+            max_next_q = max(Q[(next_state, a)] for a in actions)
+            td_target = reward + gamma * max_next_q
+            td_error = td_target - Q[(state, action)]
             Q[(state, action)] += alpha * td_error
 
             state = next_state
-            if state == GOAL:
+            if state == goal:
                 break
 
         rewards_per_episode.append(total_reward)
@@ -185,15 +189,15 @@ def q_learning(num_episodes=NUM_EPISODES,
 
     # Extract deterministic greedy policy
     policy = {}
-    for x in range(GRID_SIZE):
-        for y in range(GRID_SIZE):
+    for x in range(grid_size):
+        for y in range(grid_size):
             s = (x, y)
-            if s in ROADBLOCKS:
+            if s in roadblocks:
                 continue
-            if s == GOAL:
+            if s == goal:
                 policy[s] = None
                 continue
-            policy[s] = max(ACTIONS, key=lambda a: Q[(s, a)])
+            policy[s] = max(actions, key=lambda a: Q[(s, a)])
 
     return Q, policy, rewards_per_episode
 
@@ -203,30 +207,30 @@ def q_learning(num_episodes=NUM_EPISODES,
 
 def all_states():
     return [(x, y)
-            for x in range(GRID_SIZE)
-            for y in range(GRID_SIZE)
-            if (x, y) not in ROADBLOCKS]
+            for x in range(grid_size)
+            for y in range(grid_size)
+            if (x, y) not in roadblocks]
 
 
 def q_to_V(Q):
     """V(s) = max_a Q(s, a)."""
     V = {}
     for s in all_states():
-        V[s] = 0.0 if s == GOAL else max(Q[(s, a)] for a in ACTIONS)
+        V[s] = 0.0 if s == goal else max(Q[(s, a)] for a in actions)
     return V
 
 
 def print_value_function(V, title="Value Function"):
     print(f"\n  {title}")
     print("  " + "-" * 41)
-    print("       " + "".join(f"  x={x}  " for x in range(GRID_SIZE)))
-    for y in range(GRID_SIZE - 1, -1, -1):
+    print("       " + "".join(f"  x={x}  " for x in range(grid_size)))
+    for y in range(grid_size - 1, -1, -1):
         row = f"  y={y} |"
-        for x in range(GRID_SIZE):
+        for x in range(grid_size):
             s = (x, y)
-            if s in ROADBLOCKS:
+            if s in roadblocks:
                 row += "  BLK  "
-            elif s == GOAL:
+            elif s == goal:
                 row += " [GOAL]"
             else:
                 row += f" {V.get(s, 0.0):+.2f} "
@@ -237,15 +241,15 @@ def print_value_function(V, title="Value Function"):
 def print_policy(policy, title="Policy"):
     print(f"\n  {title}")
     print("  " + "-" * 41)
-    print("       " + "".join(f"  x={x} " for x in range(GRID_SIZE)))
-    for y in range(GRID_SIZE - 1, -1, -1):
+    print("       " + "".join(f"  x={x} " for x in range(grid_size)))
+    for y in range(grid_size - 1, -1, -1):
         row = f"  y={y} |"
-        for x in range(GRID_SIZE):
+        for x in range(grid_size):
             s = (x, y)
-            if s in ROADBLOCKS:
+            if s in roadblocks:
                 row += "   B  "
             else:
-                sym = ACTION_SYMBOLS.get(policy.get(s), '?')
+                sym = action_symbol.get(policy.get(s), '?')
                 row += f"   {sym}  "
         print(row)
     print()
@@ -253,9 +257,9 @@ def print_policy(policy, title="Policy"):
 
 def compare_policies(policy_a, policy_b, label_a="A", label_b="B"):
     """Quantify agreement between two policies over non-terminal states."""
-    states     = [s for s in all_states() if s != GOAL]
-    matches    = sum(1 for s in states if policy_a.get(s) == policy_b.get(s))
-    total      = len(states)
+    states = [s for s in all_states() if s != goal]
+    matches = sum(1 for s in states if policy_a.get(s) == policy_b.get(s))
+    total = len(states)
     mismatches = [(s, policy_a.get(s), policy_b.get(s))
                   for s in states if policy_a.get(s) != policy_b.get(s)]
     print(f"  {label_a} vs {label_b}:")
@@ -276,20 +280,20 @@ if __name__ == "__main__":
     from part2_task2 import monte_carlo_control
 
     print("=" * 60)
-    print("PART 2 – TASK 3: Tabular Q-Learning (Model-Free, Off-Policy)")
-    print(f"  Episodes: {NUM_EPISODES}  |  ε = {EPSILON}  |"
-          f"  α = {ALPHA}  |  γ = {GAMMA}")
+    print("PART 2 TASK 3: Tabular Q-Learning (Model-Free, Off-Policy)")
+    print(f"  Episodes: {num_episodes}  |  ε = {epsilon}  |"
+          f"  α = {alpha}  |  γ = {gamma}")
     print("=" * 60)
 
     # --- Reference policies ---
     print("\n[Loading Task 1 optimal policy...]")
     _, policy_vi = value_iteration()
 
-    print(f"\n[Training Monte Carlo agent ({NUM_EPISODES} episodes) ...]")
-    _, policy_mc = monte_carlo_control(num_episodes=NUM_EPISODES)
+    print(f"\n[Training Monte Carlo agent ({num_episodes} episodes) ...]")
+    _, policy_mc = monte_carlo_control(num_episodes=num_episodes)
 
     # --- Q-Learning Training ---
-    print(f"\n[Training Q-Learning agent ({NUM_EPISODES} episodes) ...]")
+    print(f"\n[Training Q-Learning agent ({num_episodes} episodes) ...]")
     Q_ql, policy_ql, ep_rewards = q_learning()
 
     # --- Results ---
@@ -302,14 +306,14 @@ if __name__ == "__main__":
 
     # --- Policy Comparisons ---
     print("\n[Policy Comparisons]")
-    compare_policies(policy_ql, policy_vi, label_a="Q-Learning", label_b="Optimal (VI)")
+    compare_policies(policy_ql, policy_vi, label_a="Q-Learning", label_b="Optimal (Value Iteration)")
     compare_policies(policy_ql, policy_mc, label_a="Q-Learning", label_b="MC Control")
-    compare_policies(policy_mc, policy_vi, label_a="MC Control", label_b="Optimal (VI)")
+    compare_policies(policy_mc, policy_vi, label_a="MC Control", label_b="Optimal (Value Iteration)")
 
     # --- Convergence Summary ---
     chunk = 5_000
     print("\n[Q-Learning Convergence: Average Episode Reward]")
-    for i in range(0, NUM_EPISODES, chunk):
+    for i in range(0, num_episodes, chunk):
         window = ep_rewards[i: i + chunk]
         avg    = sum(window) / len(window)
         print(f"    Episodes {i+1:>6}–{i+chunk:<6}: avg reward = {avg:+.2f}")
