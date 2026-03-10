@@ -35,18 +35,18 @@ Discount factor γ = 0.9
 # Environment Constants
 # ============================================================
 
-GRID_SIZE   = 5
-START       = (0, 0)
-GOAL        = (4, 4)
-ROADBLOCKS  = {(2, 1), (2, 3)}
-GAMMA       = 0.9
+grid_size = 5
+start = (0, 0)
+goal = (4, 4)
+roadblocks = {(2, 1), (2, 3)}
+gamma = 0.9
 
-ACTIONS = ['U', 'D', 'L', 'R']
-ACTION_SYMBOLS = {'U': '↑', 'D': '↓', 'L': '←', 'R': '→', None: 'G'}
+actions = ['U', 'D', 'L', 'R']
+action_symbol = {'U': '^', 'D': 'v', 'L': '<', 'R': '>', None: 'G'}
 
 # Perpendicular directions for each intended action
-#   (perpendicular-left, perpendicular-right)
-PERP = {
+# (perpendicular-left, perpendicular-right)
+perpendicular = {
     'U': ('L', 'R'),
     'D': ('R', 'L'),   # left of "Down" is Right; right of "Down" is Left
     'L': ('D', 'U'),
@@ -60,9 +60,9 @@ PERP = {
 def all_states():
     """All valid (non-roadblock) grid cells."""
     return [(x, y)
-            for x in range(GRID_SIZE)
-            for y in range(GRID_SIZE)
-            if (x, y) not in ROADBLOCKS]
+            for x in range(grid_size)
+            for y in range(grid_size)
+            if (x, y) not in roadblocks]
 
 
 def move(state, action):
@@ -71,13 +71,18 @@ def move(state, action):
     Returns the resulting state; stays in place if the move is invalid.
     """
     x, y = state
-    if   action == 'U': nx, ny = x,     y + 1
-    elif action == 'D': nx, ny = x,     y - 1
-    elif action == 'L': nx, ny = x - 1, y
-    elif action == 'R': nx, ny = x + 1, y
-    else: raise ValueError(f"Unknown action: {action}")
+    if action == 'U': 
+        nx, ny = x, y + 1
+    elif action == 'D': 
+        nx, ny = x, y - 1
+    elif action == 'L': 
+        nx, ny = x - 1, y
+    elif action == 'R': 
+        nx, ny = x + 1, y
+    else: 
+        raise ValueError(f"Unknown action:{action}")
 
-    if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (nx, ny) not in ROADBLOCKS:
+    if 0 <= nx < grid_size and 0 <= ny < grid_size and (nx, ny) not in roadblocks:
         return (nx, ny)
     return state   # wall or roadblock → stay
 
@@ -91,10 +96,10 @@ def transitions(state, action):
         −1    otherwise
     Probabilities for outcomes that share the same next-state are merged.
     """
-    if state == GOAL:
+    if state == goal:
         return []   # absorbing terminal state
 
-    perp_l, perp_r = PERP[action]
+    perp_l, perp_r = perpendicular[action]
     raw = [(action, 0.8), (perp_l, 0.1), (perp_r, 0.1)]
 
     # Merge probabilities for identical next-states (e.g. two perp moves
@@ -102,12 +107,12 @@ def transitions(state, action):
     outcomes = {}
     for act, prob in raw:
         ns = move(state, act)
-        reward = 10.0 if ns == GOAL else -1.0
+        reward = 10.0 if ns == goal else -1.0
         if ns not in outcomes:
             outcomes[ns] = [0.0, reward]
         outcomes[ns][0] += prob
 
-    return [(ns, p, r) for ns, (p, r) in outcomes.items()]
+    return [(ns,p,r) for ns, (p,r) in outcomes.items()]
 
 # ============================================================
 # (a) Value Iteration
@@ -136,19 +141,19 @@ def value_iteration(theta=1e-9):
 
     iteration = 0
     while True:
-        delta   = 0.0
-        new_V   = {}
+        delta = 0.0
+        new_V = {}
 
         for s in states:
-            if s == GOAL:
+            if s == goal:
                 new_V[s] = 0.0   # terminal state
                 continue
 
             # Bellman optimality backup
             new_V[s] = max(
-                sum(prob * (r + GAMMA * V[ns])
+                sum(prob * (r + gamma * V[ns])
                     for ns, prob, r in transitions(s, a))
-                for a in ACTIONS
+                for a in actions
             )
             delta = max(delta, abs(new_V[s] - V[s]))
 
@@ -163,12 +168,12 @@ def value_iteration(theta=1e-9):
     # Greedy policy extraction
     policy = {}
     for s in states:
-        if s == GOAL:
+        if s == goal:
             policy[s] = None
             continue
         policy[s] = max(
-            ACTIONS,
-            key=lambda a: sum(prob * (r + GAMMA * V[ns])
+            actions,
+            key=lambda a: sum(prob * (r + gamma * V[ns])
                               for ns, prob, r in transitions(s, a))
         )
 
@@ -204,12 +209,12 @@ def policy_evaluation(policy, theta=1e-9):
         new_V = {}
 
         for s in states:
-            if s == GOAL or policy[s] is None:
+            if s == goal or policy[s] is None:
                 new_V[s] = 0.0
                 continue
             a = policy[s]
             new_V[s] = sum(
-                prob * (r + GAMMA * V[ns])
+                prob * (r + gamma * V[ns])
                 for ns, prob, r in transitions(s, a)
             )
             delta = max(delta, abs(new_V[s] - V[s]))
@@ -241,7 +246,7 @@ def policy_iteration():
 
     # Initialise with a fixed (arbitrary) policy: always go Up
     policy = {s: 'U' for s in states}
-    policy[GOAL] = None
+    policy[goal] = None
 
     iteration = 0
     while True:
@@ -251,12 +256,12 @@ def policy_iteration():
         # --- Step 2: Policy Improvement ---
         policy_stable = True
         for s in states:
-            if s == GOAL:
+            if s == goal:
                 continue
             old_a = policy[s]
             best_a = max(
-                ACTIONS,
-                key=lambda a: sum(prob * (r + GAMMA * V[ns])
+                actions,
+                key=lambda a: sum(prob * (r + gamma * V[ns])
                                   for ns, prob, r in transitions(s, a))
             )
             policy[s] = best_a
@@ -279,15 +284,15 @@ def print_value_function(V, title="Value Function"):
     """Print V as a grid, high-y rows first (y=4 at top)."""
     print(f"\n  {title}")
     print("  " + "-" * 41)
-    header = "       " + "".join(f"  x={x}  " for x in range(GRID_SIZE))
+    header = "       " + "".join(f"  x={x}  " for x in range(grid_size))
     print(header)
-    for y in range(GRID_SIZE - 1, -1, -1):
+    for y in range(grid_size - 1, -1, -1):
         row = f"  y={y} |"
-        for x in range(GRID_SIZE):
+        for x in range(grid_size):
             s = (x, y)
-            if s in ROADBLOCKS:
+            if s in roadblocks:
                 row += "  BLK  "
-            elif s == GOAL:
+            elif s == goal:
                 row += " [GOAL]"
             else:
                 row += f" {V.get(s, 0.0):+.2f} "
@@ -299,16 +304,16 @@ def print_policy(policy, title="Policy"):
     """Print policy as a grid of arrows."""
     print(f"\n  {title}")
     print("  " + "-" * 41)
-    header = "       " + "".join(f"  x={x} " for x in range(GRID_SIZE))
+    header = "       " + "".join(f"  x={x} " for x in range(grid_size))
     print(header)
-    for y in range(GRID_SIZE - 1, -1, -1):
+    for y in range(grid_size - 1, -1, -1):
         row = f"  y={y} |"
-        for x in range(GRID_SIZE):
+        for x in range(grid_size):
             s = (x, y)
-            if s in ROADBLOCKS:
+            if s in roadblocks:
                 row += "   B  "
             else:
-                sym = ACTION_SYMBOLS.get(policy.get(s), '?')
+                sym = action_symbol.get(policy.get(s), '?')
                 row += f"   {sym}  "
         print(row)
     print()
@@ -317,7 +322,7 @@ def print_policy(policy, title="Policy"):
 def compare_policies(policy_vi, policy_pi, label_a="VI", label_b="PI"):
     """Report states where two policies differ."""
     diffs = [s for s in all_states()
-             if s != GOAL and policy_vi.get(s) != policy_pi.get(s)]
+             if s != goal and policy_vi.get(s) != policy_pi.get(s)]
     if not diffs:
         print(f"  ✓ Policies from {label_a} and {label_b} are IDENTICAL.\n")
     else:
