@@ -1,40 +1,3 @@
-"""
-Part 2 – Task 1: MDP Planning with a Known Transition Model
-===========================================================
-Implements two classical planning algorithms on a 5×5 stochastic grid world:
-    (a) Value Iteration  – Bellman optimality equation iterated to convergence.
-    (b) Policy Iteration – Alternates between policy evaluation and policy
-                          improvement until the policy is stable.
-
-Grid World
-----------
-    • Size      : 5 × 5, states (x, y) with x, y ∈ {0,1,2,3,4}
-    • Start     : (0, 0) – bottom-left corner
-    • Goal      : (4, 4) – top-right corner  (terminal state)
-    • Roadblocks: (2, 1) and (2, 3)         (impassable cells)
-    • Actions   : U (up), D (down), L (left), R (right)
-
-Stochastic Transition Model (known to the agent in Task 1)
------------------------------------------------------------
-    When action a is chosen in state s:
-        • Prob 0.8 : move in intended direction
-        • Prob 0.1 : move perpendicular-left  of intended direction
-        • Prob 0.1 : move perpendicular-right of intended direction
-    If a resulting move would leave the grid or enter a roadblock, the
-    agent stays in its current cell.
-
-Rewards
--------
-    • −1 for every step taken
-    • +10 upon entering the goal state (then episode terminates)
-
-Discount factor γ = 0.9
-"""
-
-# ============================================================
-# Environment Constants
-# ============================================================
-
 grid_size = 5
 start = (0, 0)
 goal = (4, 4)
@@ -52,10 +15,6 @@ perpendicular = {
     'L': ('D', 'U'),
     'R': ('U', 'D'),
 }
-
-# ============================================================
-# Environment Helpers
-# ============================================================
 
 def all_states():
     """All valid (non-roadblock) grid cells."""
@@ -93,17 +52,14 @@ def transitions(state, action):
 
     The reward is:
         +10   if s' == GOAL
-        −1    otherwise
+        -1    otherwise
     Probabilities for outcomes that share the same next-state are merged.
     """
     if state == goal:
-        return []   # absorbing terminal state
+        return []
 
     perp_l, perp_r = perpendicular[action]
-    raw = [(action, 0.8), (perp_l, 0.1), (perp_r, 0.1)]
-
-    # Merge probabilities for identical next-states (e.g. two perp moves
-    # both blocked → both stay; they sum to the same s').
+    raw = [(action, 0.8), (perp_l, 0.1), (perp_r, 0.1)] # Merge probabilities for identical next-states
     outcomes = {}
     for act, prob in raw:
         ns = move(state, act)
@@ -114,28 +70,7 @@ def transitions(state, action):
 
     return [(ns,p,r) for ns, (p,r) in outcomes.items()]
 
-# ============================================================
-# (a) Value Iteration
-# ============================================================
-
 def value_iteration(theta=1e-9):
-    """
-    Value Iteration (Bellman Optimality Operator).
-
-    Iteratively applies:
-        V_{k+1}(s) = max_a Σ_{s'} P(s'|s,a) [ R(s,a,s') + γ V_k(s') ]
-
-    until max |V_{k+1}(s) − V_k(s)| < theta.
-
-    Parameters
-    ----------
-    theta : convergence threshold (default 1e-9)
-
-    Returns
-    -------
-    V      : dict  {state → optimal value}
-    policy : dict  {state → optimal action}
-    """
     states = all_states()
     V = {s: 0.0 for s in states}
 
@@ -146,7 +81,7 @@ def value_iteration(theta=1e-9):
 
         for s in states:
             if s == goal:
-                new_V[s] = 0.0   # terminal state
+                new_V[s] = 0.0 # terminal state
                 continue
 
             # Bellman optimality backup
@@ -179,28 +114,7 @@ def value_iteration(theta=1e-9):
 
     return V, policy
 
-# ============================================================
-# (b) Policy Iteration
-# ============================================================
-
 def policy_evaluation(policy, theta=1e-9):
-    """
-    Iterative Policy Evaluation (Bellman Expectation Equation).
-
-    Solves:
-        V^π_{k+1}(s) = Σ_{s'} P(s'|s, π(s)) [ R(s,π(s),s') + γ V^π_k(s') ]
-
-    until convergence within theta.
-
-    Parameters
-    ----------
-    policy : dict {state → action}
-    theta  : convergence threshold
-
-    Returns
-    -------
-    V : dict {state → value under the given policy}
-    """
     states = all_states()
     V = {s: 0.0 for s in states}
 
@@ -227,33 +141,14 @@ def policy_evaluation(policy, theta=1e-9):
 
 
 def policy_iteration():
-    """
-    Policy Iteration.
-
-    Alternates between:
-        1. Policy Evaluation  – compute V^π for the current policy.
-        2. Policy Improvement – update π greedily with respect to V^π.
-
-    Terminates when the policy no longer changes (guaranteed to converge
-    to the optimal policy for finite MDPs).
-
-    Returns
-    -------
-    V      : dict {state → optimal value}
-    policy : dict {state → optimal action}
-    """
     states = all_states()
-
     # Initialise with a fixed (arbitrary) policy: always go Up
     policy = {s: 'U' for s in states}
     policy[goal] = None
 
     iteration = 0
     while True:
-        # --- Step 1: Policy Evaluation ---
         V = policy_evaluation(policy)
-
-        # --- Step 2: Policy Improvement ---
         policy_stable = True
         for s in states:
             if s == goal:
@@ -276,10 +171,6 @@ def policy_iteration():
 
     return V, policy
 
-# ============================================================
-# Display Helpers
-# ============================================================
-
 def print_value_function(V, title="Value Function"):
     """Print V as a grid, high-y rows first (y=4 at top)."""
     print(f"\n  {title}")
@@ -301,7 +192,6 @@ def print_value_function(V, title="Value Function"):
 
 
 def print_policy(policy, title="Policy"):
-    """Print policy as a grid of arrows."""
     print(f"\n  {title}")
     print("  " + "-" * 41)
     header = "       " + "".join(f"  x={x} " for x in range(grid_size))
@@ -320,11 +210,11 @@ def print_policy(policy, title="Policy"):
 
 
 def compare_policies(policy_vi, policy_pi, label_a="VI", label_b="PI"):
-    """Report states where two policies differ."""
+    #report states where two policies differ
     diffs = [s for s in all_states()
              if s != goal and policy_vi.get(s) != policy_pi.get(s)]
     if not diffs:
-        print(f"  ✓ Policies from {label_a} and {label_b} are IDENTICAL.\n")
+        print(f"  Policies from {label_a} and {label_b} are identical.\n")
     else:
         print(f"  Policies differ at {len(diffs)} state(s):")
         for s in diffs:
@@ -337,29 +227,22 @@ def max_value_diff(V1, V2):
     states = all_states()
     return max(abs(V1[s] - V2.get(s, 0.0)) for s in states)
 
-# ============================================================
-# Main
-# ============================================================
-
 if __name__ == "__main__":
     print("=" * 60)
-    print("PART 2 – TASK 1: MDP Planning (Known Transition Model)")
-    print("  Grid: 5×5  |  γ = 0.9  |  Stochastic (0.8 / 0.1 / 0.1)")
+    print("PART 2 - TASK 1: MDP Planning (Known Transition Model)")
+    print("  Grid: 5x5  |  γ = 0.9  |  Stochastic (0.8 / 0.1 / 0.1)")
     print("=" * 60)
 
-    # ------ Value Iteration ------
     print("\n[Value Iteration]")
     V_vi, policy_vi = value_iteration()
     print_value_function(V_vi, "Optimal Value Function  (Value Iteration)")
     print_policy(policy_vi,    "Optimal Policy          (Value Iteration)")
 
-    # ------ Policy Iteration ------
     print("\n[Policy Iteration]")
     V_pi, policy_pi = policy_iteration()
     print_value_function(V_pi, "Optimal Value Function  (Policy Iteration)")
     print_policy(policy_pi,    "Optimal Policy          (Policy Iteration)")
 
-    # ------ Comparison ------
     print("\n[Comparison: Value Iteration vs Policy Iteration]")
     compare_policies(policy_vi, policy_pi)
     diff = max_value_diff(V_vi, V_pi)

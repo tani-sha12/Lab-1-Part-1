@@ -1,32 +1,5 @@
-"""
-Part 2 – Task 2: Monte Carlo Control (Model-Free)
-==================================================
-The agent does NOT know the transition probabilities.
-The environment, however, still follows the same stochastic dynamics
-(0.8 / 0.1 / 0.1) as in Task 1.
-
-The agent learns by interacting with the environment through complete
-episodes (Monte Carlo), using:
-    • First-Visit MC prediction to estimate Q(s, a)
-    • ε-greedy policy improvement  (ε = 0.1, fixed throughout)
-
-After training, the learned policy is extracted and printed for
-comparison with the optimal policies from Task 1.
-
-Grid World (same as Task 1)
-----------------------------
-    5×5 grid, Start (0,0), Goal (4,4), Roadblocks {(2,1),(2,3)}
-    Stochastic transitions: 0.8 intended, 0.1 each perpendicular
-    Rewards: −1 per step, +10 on reaching GOAL
-    Discount factor γ = 0.9
-"""
-
 import random
 from collections import defaultdict
-
-# ============================================================
-# Environment Constants
-# ============================================================
 
 grid_size  = 5
 start      = (0, 0)
@@ -46,10 +19,6 @@ perpendicular = {
     'R': ('U', 'D'),
 }
 
-# ============================================================
-# Environment Dynamics (embedded in the environment, unknown to agent)
-# ============================================================
-
 def move(state, action):
     """Deterministic move; stays if wall or roadblock."""
     x, y = state
@@ -63,17 +32,6 @@ def move(state, action):
 
 
 def stochastic_step(state, action):
-    """
-    Stochastic transition model (part of the environment, NOT the agent).
-    The agent only sees the resulting next_state and reward; it cannot
-    access the probabilities directly.
-
-        intended direction  → prob 0.8
-        perpendicular-left  → prob 0.1
-        perpendicular-right → prob 0.1
-
-    Returns (next_state, reward).
-    """
     perp_l, perp_r = perpendicular[action]
     outcomes = [(action, 0.8), (perp_l, 0.1), (perp_r, 0.1)]
 
@@ -93,15 +51,11 @@ def stochastic_step(state, action):
     ns = move(state, action)
     return ns, (10.0 if ns == goal else -1.0)
 
-# ============================================================
-# ε-Greedy Policy
-# ============================================================
-
 def epsilon_greedy(Q, state, epsilon):
     """
     ε-greedy action selection over Q(state, ·).
         • With prob ε  : choose a random action uniformly.
-        • With prob 1−ε: choose the greedy (highest Q-value) action.
+        • With prob 1-ε: choose the greedy (highest Q-value) action.
           Ties are broken randomly among maximisers.
     """
     if random.random() < epsilon:
@@ -111,14 +65,9 @@ def epsilon_greedy(Q, state, epsilon):
     best = [a for a, q in zip(actions, q_vals) if q == max_q]
     return random.choice(best)
 
-# ============================================================
-# Episode Generation
-# ============================================================
-
 def generate_episode(Q, epsilon, max_steps=500):
     """
     Run one full episode from START to GOAL (or max_steps).
-
     Returns a list of (state, action, reward) triples.
     The agent selects actions via its current ε-greedy policy derived from Q.
     Transitions are sampled from the stochastic environment.
@@ -136,56 +85,15 @@ def generate_episode(Q, epsilon, max_steps=500):
 
     return episode
 
-# ============================================================
-# First-Visit Monte Carlo Control
-# ============================================================
-
-def monte_carlo_control(num_episodes=num_episodes,
-                        epsilon=epsilon,
-                        gamma=GAMMA,
-                        seed=42):
-    """
-    First-Visit Monte Carlo Control with ε-greedy exploration.
-
-    Algorithm
-    ---------
-    For each episode:
-        1. Generate episode using current ε-greedy policy.
-        2. Compute discounted return  G_t = Σ_{k≥0} γ^k · r_{t+k+1}
-           for each time step t (working backwards for efficiency).
-        3. For each (s, a) that appears FIRST at time t:
-               returns(s, a).append(G_t)
-               Q(s, a) ← mean of returns(s, a)
-        4. The policy implicitly improves because epsilon_greedy uses
-           the updated Q.
-
-    The use of *first-visit* MC means only the first occurrence of each
-    (state, action) pair within an episode contributes to the return
-    estimate.  This guarantees unbiased estimates under the behaviour
-    policy.
-
-    Parameters
-    ----------
-    num_episodes : number of training episodes
-    epsilon      : fixed exploration rate (ε = 0.1)
-    gamma        : discount factor (γ = 0.9)
-    seed         : random seed for reproducibility
-
-    Returns
-    -------
-    Q      : dict {(state, action) → estimated action-value}
-    policy : dict {state → greedy action w.r.t. Q}
-    """
+def monte_carlo_control(num_episodes=num_episodes, epsilon=epsilon,gamma=GAMMA,seed=42):
     random.seed(seed)
 
-    Q = defaultdict(float)   # Q(s, a) initialised to 0
+    Q = defaultdict(float) # Q(s, a) initialised to 0
     returns_sum   = defaultdict(float)
     returns_count = defaultdict(int)
 
     for ep in range(1, num_episodes + 1):
         episode = generate_episode(Q, epsilon)
-
-        # --- First-Visit MC Return Computation ---
         G = 0.0
         visited = set()
 
@@ -194,7 +102,7 @@ def monte_carlo_control(num_episodes=num_episodes,
             G = gamma * G + reward
 
             sa = (state, action)
-            if sa not in visited:          # first-visit check
+            if sa not in visited: # first-visit check
                 visited.add(sa)
                 returns_sum[sa]   += G
                 returns_count[sa] += 1
@@ -216,10 +124,6 @@ def monte_carlo_control(num_episodes=num_episodes,
             policy[s] = max(actions, key=lambda a: Q[(s, a)])
 
     return Q, policy
-
-# ============================================================
-# Display Helpers
-# ============================================================
 
 def all_states():
     return[(x, y)
@@ -289,10 +193,6 @@ def compare_to_optimal(mc_policy, optimal_policy, label="MC vs Optimal"):
             print(f"      State{s}: MC={mc_a}  Optimal={opt_a}")
     print()
 
-# ============================================================
-# Main
-# ============================================================
-
 if __name__ == "__main__":
     # Import Task 1 optimal policy for comparison
     import sys, os
@@ -304,20 +204,16 @@ if __name__ == "__main__":
     print(f"  Episodes: {num_episodes}  |  ε = {epsilon}  |  γ = {GAMMA}")
     print("=" * 60)
 
-    # --- Get optimal policy from Task 1 for later comparison ---
     print("[Loading Task 1 optimal policy for comparison...]")
     _, optimal_policy = value_iteration()
 
-    # --- Monte Carlo Training ---
     print(f"[Training Monte Carlo agent for {num_episodes} episodes...]")
     Q_mc, policy_mc = monte_carlo_control()
 
-    # --- Display Results ---
     V_mc = q_to_V(Q_mc)
     print_value_function(V_mc, "State-Value Function  V(s) = max_a Q(s,a) [Monte Carlo]")
     print_policy(policy_mc,    "Learned Policy(Monte Carlo)")
     print_policy(optimal_policy, "Reference: Optimal Policy (Task 1 – Value Iteration)")
 
-    # --- Policy Comparison ---
     print("[Policy Comparison]")
     compare_to_optimal(policy_mc, optimal_policy, label="MC Control vs Optimal (Value Iteration)")
