@@ -28,9 +28,9 @@ def reconstruct_path(prev, source, target):
 
 def format_output(path, total_dist, total_energy):
     path_str = '->'.join(path)
-    print(f"Shortest path: {path_str}.")
-    print(f"Shortest distance: {total_dist}.")
-    print(f"Total energy cost: {total_energy}.")
+    print(f"Shortest path: {path_str}")
+    print(f"Shortest distance: {total_dist}")
+    print(f"Total energy cost: {total_energy}")
 
 
 # Task 1 — Uniform-Cost Search (no energy constraint)
