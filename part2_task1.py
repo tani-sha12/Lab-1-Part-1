@@ -94,8 +94,8 @@ def value_iteration(theta=1e-9):
 
         V = new_V
         iteration += 1
-    
-    if delta < theta:
+
+        if delta < theta:
             print(f"  Value Iteration converged after {iteration} sweeps "
                   f"(Δ = {delta:.2e})")
             break
